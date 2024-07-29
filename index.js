@@ -22,12 +22,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health check
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Connecting to routes
 app.use('/api/auth', authRoutes);
 app.use('/api/product', productRoutes);
 app.use('/api/country', countryRoutes);
 app.use('/api/region', regionRoutes);
 app.use('/api/city', cityRoutes);
+
+
 
 // Get the directory name from the URL
 const __filename = fileURLToPath(import.meta.url);
