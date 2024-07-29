@@ -20,8 +20,8 @@ const app = express();
 
 // Using the middleware
 app.use(cors({
-  origin: 'https://escortmundo.com/',
-  methods: ['GET', 'POST', 'DELETE'],
+  origin: 'https://escortmundo.com',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
