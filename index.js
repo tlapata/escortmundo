@@ -19,13 +19,12 @@ const PORT = process.env.PORT || 5056;
 const app = express();
 
 // Using the middleware
-app.use(cors());
+app.use(cors({
+  origin: 'https://escortmundo.com/',
+  methods: ['GET', 'POST', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
-
-// Health check
-app.get('/', (req, res) => {
-  res.status(200).send('OK');
-});
 
 // Connecting to routes
 app.use('/api/auth', authRoutes);
@@ -92,6 +91,10 @@ app.delete("/delete-ad/:ad_id", async(req, res) => {
   }
 });
 
+// Health check
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
 
 //app.use("/record", records);
 //import routes from "./routes/api/user.js";
