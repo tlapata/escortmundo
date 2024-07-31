@@ -11,12 +11,21 @@ const credentials = {
         secretAccessKey: process.env.SESSECRET
     }
 };
-const frontEnd = process.env.FRONTEND;
+const localFront = process.env.FRONTEND;
+const NODE_ENV = process.env.NODE_ENV;
 
 // SES instance
 const client = new SESClient(credentials);
 
-const sesEmail = async (recipientEmail, name, confirmationToken) => {
+const sesEmail = async (recipientEmail, name, confirmationToken, subdomain) => {
+
+    let frontEnd;
+
+    if (NODE_ENV === "development") {
+        frontEnd = localFront;
+    } else if (NODE_ENV === "production") {
+        frontEnd = `https://${subdomain}.${localFront}`;
+    }        
 
     let params = {
         Source: process.env.SESSENDER,
@@ -43,8 +52,8 @@ const sesEmail = async (recipientEmail, name, confirmationToken) => {
                                                 <table width="100%" cellpadding="0" cellspacing="0" border="0">
                                                     <tbody><tr>
                                                         <td style="padding-right:0px;padding-left:0px" align="center">
-                                                            <a href="https://escortmundo.com/" target="_blank">
-                                                                <img align="center" border="0" src="https://ci3.googleusercontent.com/meips/ADKq_NY-UzrMQqnI7YfvB_qLQgwISC8dgPEzRd2WnM5D_vsVFJYUjzHsgIp9zNhTyXuf9kLeLaVHi4QhvjG96_IpzVRwRNbOVAUvhvmEz1sETRcPm9h7rjNjJTJ4pa4BMbZgvuP_iRXl=s0-d-e1-ft#https://uk.simpleescorts.com/static/images/SimpleEscorts.png?version=1706018792" alt="EscortMundo" title="EscortMundo" style="outline:none;text-decoration:none;clear:both;display:inline-block!important;border:none;height:auto;float:none;width:50%;max-width:230px" width="230" class="m_-3407080369691297100v-src-width m_-3407080369691297100v-src-max-width CToWUd" data-bit="iit">
+                                                            <a href="https://escortmundo.com/" target="_blank" style="font-family:'Leckerli One',arial,helvetica,sans-serif;text-decoration:none;font-size: 3rem; color: #ff1749;display:block;">
+                                                                EscortMundo
                                                             </a>
                                                         </td>
                                                     </tr>
@@ -81,7 +90,7 @@ const sesEmail = async (recipientEmail, name, confirmationToken) => {
         <tr>
             <td style="word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif" align="left">
                 <div align="center"> 
-                    <a href="${frontEnd}/signup/confirmed-account/?token=${confirmationToken}" style="box-sizing:border-box;display:inline-block;font-family:arial,helvetica,sans-serif;text-decoration:none;text-align:center;color:#ffffff;background-color:#5d40dd;border-radius:4px;width:60%;max-width:100%;word-break:break-word;word-wrap:break-word" target="_blank">
+                    <a href="${frontEnd}/signup/confirmed-account/?token=${confirmationToken}" style="box-sizing:border-box;display:inline-block;font-family:arial,helvetica,sans-serif;text-decoration:none;text-align:center;color:#ffffff;background-color:#ff1749;border-radius:4px;width:60%;max-width:100%;word-break:break-word;word-wrap:break-word" target="_blank">
                                   <span style="display:block;padding:16px 20px;line-height:140%"><strong><span style="font-family:'Open Sans',sans-serif;font-size:14px;line-height:19.6px"><span style="font-size:16px;line-height:22.4px">Confirm Account</span></span>
                                   </strong><br></span>
                     </a>
@@ -96,7 +105,7 @@ const sesEmail = async (recipientEmail, name, confirmationToken) => {
             <td style="word-break:break-word;padding:10px;font-family:arial,helvetica,sans-serif" align="left">
                 <h1 style="margin:0px;line-height:140%;text-align:left;word-wrap:break-word;font-weight:normal;font-family:'Open Sans',sans-serif;font-size:12px">
                     If you're having trouble with the button above, copy and paste the URL below into your web browser:
-                    <br><br><span style="text-decoration:underline"><a rel="noopener" href="${frontEnd}/signup/confirmed-account/?token=${confirmationToken}" target="_blank">href="${frontEnd}/signup/confirmed-account/?token=${confirmationToken}"</a></span>
+                    <br><br><span style="text-decoration:underline"><a rel="noopener" href="${frontEnd}/signup/confirmed-account/?token=${confirmationToken}" target="_blank">${frontEnd}/signup/confirmed-account/?token=${confirmationToken}</a></span>
                 </h1>
 
             </td>

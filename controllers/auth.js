@@ -28,7 +28,7 @@ const MY_SECRET_KEY = process.env.MY_SECRET_KEY;
 //Register User Controller
 export const register = async (req, res) => {
 
-    const { email, password } = req.body;
+    const { email, password, subdomain } = req.body;
 
     // checking email 
     const isEmailExist = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
@@ -49,7 +49,7 @@ export const register = async (req, res) => {
         );
 
         // Sending confirmation email
-        sesEmail("tanusharamonka@gmail.com", email, confirmationToken);
+        sesEmail("tanusharamonka@gmail.com", email, confirmationToken, subdomain);
         
         const token = jwt.sign({ userId: newUser.id }, MY_SECRET_KEY);
 
