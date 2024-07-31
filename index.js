@@ -19,8 +19,20 @@ const PORT = process.env.PORT || 5056;
 const app = express();
 
 // Using the middleware
+const allowedOrigins = [
+  'https://escortmundo.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002'
+];
 app.use(cors({
-  origin: ['https://escortmundo.com', 'http://localhost:3002', 'http://localhost:3001'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.escortmundo.com')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
