@@ -20,7 +20,7 @@ const app = express();
 
 // Using the middleware
 app.use(cors({
-  origin: 'https://escortmundo.com',
+  origin: ['https://escortmundo.com', 'http://localhost:3002', 'http://localhost:3001'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
