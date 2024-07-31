@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
-import { capitalizeFirstLetter } from '../utils/capitalizeFirstLetter.js';
 import { validationResult } from 'express-validator';
 import { extractIDfromSlug } from '../utils/extractIDfromSlug.js';
 import createImageUrl from '../utils/createImageUrl.js';
@@ -163,12 +162,9 @@ export const GetAll = async (req, res) => {
         `SELECT a.*, c.name AS cityname
          FROM ads a
          JOIN cities c ON a.city = c.id
-         WHERE a.status = 1 AND c.country_id = $1
-         ORDER BY a.created_at DESC`,
-        [country]
+         WHERE a.status = 1 
+         ORDER BY a.created_at DESC`
       );      
-        //res.json(allAds.rows);
-        //console.log(allAds.rows);
         res.status(200).json({
             message: 'Fetched Products successfully.',
             products: allAds.rows
@@ -177,6 +173,28 @@ export const GetAll = async (req, res) => {
         console.error(error.message);
         res.status(400).send({ error: error })
     }    
+};
+
+// Getting all active ads by country
+export const GetAllbyCountry = async (req, res) => {
+  try {
+    const {countryID} = req.params;
+    const allAds = await pool.query(
+      `SELECT a.*, c.name AS cityname
+       FROM ads a
+       JOIN cities c ON a.city = c.id
+       WHERE a.status = 1 AND c.country_id = $1
+       ORDER BY a.created_at DESC`,
+      [countryID]
+    );      
+      res.status(200).json({
+          message: 'Fetched Products successfully.',
+          products: allAds.rows
+      });
+  } catch (error) {
+      console.error(error.message);
+      res.status(400).send({ error: error })
+  }    
 };
 
 // Getting all active ads by city

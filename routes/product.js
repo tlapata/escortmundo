@@ -67,6 +67,14 @@ router.post('/add', requireAuth, multiUpload, addValidationRules, productControl
 router.get('/getAll', productController.GetAll);
 
 /**
+ * @route GET /api/product/getAllbyCountry/countryID
+ * @description Get all products from one country
+ * @access Public
+ */
+router.get('/getAllbyCountry/:countryID', productController.GetAllbyCountry);
+
+
+/**
  * @route GET /api/product/getByAuthor
  * @description Get products by user (authenticated user)
  * @access Private (requireAuth middleware)
