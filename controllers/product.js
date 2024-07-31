@@ -20,7 +20,7 @@ export const Add = async (req, res) => {
     return res.status(422).json({ error: errors.array() });
   }
 
-  console.log(req.files);
+  //console.log(req.files);
 
   if (req.files === undefined) {
     return res.status(422).json({ error: 'MainImage is required' });
@@ -33,7 +33,7 @@ export const Add = async (req, res) => {
   const { userId } = req.decoded;
   const {region, city, name, price, age, gender, nationality, description} = req.body;
 
-  console.log( req.body );
+  //console.log( req.body );
 
   const { profileImages }  = req.files;
 
@@ -207,11 +207,11 @@ export const GetByCity = async (req, res) => {
       `SELECT a.*, c.name AS cityname
        FROM ads a
        JOIN cities c ON a.city = c.id
-       WHERE a.status = 1 AND c.country_id = $1 AND c.id = $2
+       WHERE a.status = 1 AND c.id = $1
        ORDER BY a.created_at DESC`,
-      [country, city_id]
+      [city_id]
     );
-      console.log(allAds.rows);
+      //console.log(allAds.rows);
       res.status(200).json({
           message: 'Fetched Products successfully.',
           products: allAds.rows

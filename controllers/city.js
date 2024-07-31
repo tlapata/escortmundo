@@ -58,9 +58,9 @@ export const GetByID = async (req, res) => {
     const {slug} = req.params;
     const city_id = extractIDfromSlug(slug);
     try {
-        const city = await pool.query(`SELECT * FROM cities WHERE id = $1 AND country_id = $2`,
-            [city_id, country]
-        );          
+        const city = await pool.query(`SELECT * FROM cities WHERE id = $1`,
+            [city_id]
+        );
         if( city.rows[0] ) {
             res.status(200).json({
                 message: 'Fetched City successfully.',
