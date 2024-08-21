@@ -10,6 +10,7 @@ import productRoutes from "./routes/product.js";
 import countryRoutes from "./routes/country.js";
 import regionRoutes from "./routes/region.js";
 import cityRoutes from "./routes/city.js";
+import tagRoutes from  "./routes/tag.js";
 
 
 // Getting variables
@@ -23,7 +24,8 @@ const allowedOrigins = [
   'https://escortmundo.com',
   'http://localhost:3000',
   'http://localhost:3001',
-  'http://localhost:3002'
+  'http://localhost:3002',
+  'http://localhost:3003'
 ];
 app.use(cors({
   origin: (origin, callback) => {
@@ -44,6 +46,7 @@ app.use('/api/product', productRoutes);
 app.use('/api/country', countryRoutes);
 app.use('/api/region', regionRoutes);
 app.use('/api/city', cityRoutes);
+app.use('/api/tag', tagRoutes);
 
 
 

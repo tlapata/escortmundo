@@ -109,6 +109,18 @@ router.get('/getByCity/:slug', productController.GetByCity);
  */
 router.get('/getById/:id', productController.GetById);
 
+/**
+ * @route GET /api/product/getBySlug
+ * @description Get products by tag id
+ * @access Public
+ */
+router.get('/getBySlug/:tag_id', productController.GetBySlug);
+
+/**
+ * @route GET /api/product/getBySlugAndCity/slug/city
+ * @description Get products by tag id and city 
+ */
+router.get('/getBySlugAndCity/:tag_id/:city', productController.GetBySlugAndCity);
 
 
 

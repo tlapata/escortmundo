@@ -1,16 +1,13 @@
-import dotenv from 'dotenv';
 import fs from 'fs';
 import { validationResult } from 'express-validator';
 import { extractIDfromSlug } from '../utils/extractIDfromSlug.js';
+import { getPresignUrl } from "../utils/aws-s3.js";
+import { uploadToS3 } from '../utils/upload-s3.js';
 import createImageUrl from '../utils/createImageUrl.js';
 import getImagePath from '../utils/getImagePath.js';
 // Connect to the database
 import pool from '../db/db.js';
 
-
-// Getting variables
-dotenv.config();
-const country = process.env.COUNTRY;
 
 // Add new product
 export const Add = async (req, res) => {
@@ -31,100 +28,56 @@ export const Add = async (req, res) => {
   }
 
   const { userId } = req.decoded;
-  const {region, city, name, price, age, gender, nationality, description} = req.body;
-
-  //console.log( req.body );
-
+  const {country, region, city, name, price, age, gender, nationality, description, phone, whatsapp, exturl} = req.body;
   const { profileImages }  = req.files;
 
-  /*
-  const {
-    mainImage,
-    additionalImage1,
-    additionalImage2,
-    additionalImage3,
-    additionalImage4,
-    additionalImage5
-  } = req.files;
+  // Uploading images S3 and saving to DB
+  let index = 0;
+  let coverImage = '';
+  let additionalImages = [];
 
-  let dueDate = 7;
+  for (let profImage of profileImages) {
+    const { destination, filename } = profImage;
+    //console.log( 'image #', destination, filename, profImage.size, profImage.mimetype );
 
-  if (!freeInternationally) {
-    dueDate = Number(shippingDays) + dueDate;
-  } else {
-    dueDate = Number(internationalshippingDays) + dueDate;
+    // Uploading to S3
+    const presignedUrl = await getPresignUrl(`${filename}`, `${profImage.mimetyp}`, "putObject");
+
+    // Call the function to upload the file and delete it from local temp path
+    uploadToS3(presignedUrl.message, `${destination}/${filename}`, profImage.mimetype);    
+
+    // Saving to db
+    try {
+      const newImage = await pool.query(
+        `INSERT INTO images (
+          id,
+          filename, 
+          extension, 
+          size, 
+          created_at) 
+        VALUES(
+          gen_random_uuid(), $1, $2, $3, CURRENT_TIMESTAMP) RETURNING *`, 
+        [filename, profImage.mimetype, profImage.size]
+      );
+
+      if (index === 0) {
+        coverImage = newImage.rows[0].id;
+      } else {
+        additionalImages.push(newImage.rows[0].id);
+      }
+
+    } catch (error) {
+      res.status(422).json({ error: error });
+      console.error(error.message);
+    }
+
+    index++;
   }
+  
+  //console.log("coverImage:", coverImage);
+  //console.log("additionalImages:", additionalImages);
 
-  const product = new Product({
-    name,
-    category,
-    description,
-    token,
-    sellingPrice,
-    quantity,
-    freeShipping,
-    shippingCharges,
-    shippingDays,
-    countryOfSale,
-    freeInternationally,
-    color,
-    size,
-    sku,
-    manufacturePartNo,
-    productSerialNo,
-    terms,
-    tags,
-    seller: userId,
-    freeInternationalShipping,
-    internationalshippingDays,
-    internationalshippingCharges,
-    dueDate: dueDate,
-  });
-
-  if (attributes !== undefined) {
-    product.attributes = JSON.parse(attributes);
-  }
-
-  if (req.files !== undefined) {
-    if (mainImage) {
-      const { destination, filename } = mainImage[0];
-      const image = createImageUrl(destination, filename);
-      product.mainImage = image;
-    }
-    if (additionalImage1) {
-      const { destination, filename } = additionalImage1[0];
-      const image = createImageUrl(destination, filename);
-      product.additionalImage1 = image;
-    }
-    if (additionalImage2) {
-      const { destination, filename } = additionalImage2[0];
-      const image = createImageUrl(destination, filename);
-      product.additionalImage2 = image;
-    }
-    if (additionalImage3) {
-      const { destination, filename } = additionalImage3[0];
-      const image = createImageUrl(destination, filename);
-      product.additionalImage3 = image;
-    }
-    if (additionalImage4) {
-      const { destination, filename } = additionalImage4[0];
-      const image = createImageUrl(destination, filename);
-      product.additionalImage4 = image;
-    }
-    if (additionalImage5) {
-      const { destination, filename } = additionalImage5[0];
-      const image = createImageUrl(destination, filename);
-      product.additionalImage5 = image;
-    }
-  }
-*/
-
-  //if (profileImages) {
-    const { destination, filename } = profileImages[0];
-    const image = createImageUrl(destination, filename);
-    //product.mainImage = image;
-  //}
-
+  // adding into DB
   try {
     const newProduct = await pool.query(
       `INSERT INTO ads (
@@ -138,17 +91,87 @@ export const Add = async (req, res) => {
         nationality, 
         description, 
         user_id, 
-        profimage, 
+        image_id,
+        phone, whatsapp, exturl, 
         created_at) 
       VALUES(
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP) RETURNING *`, 
-      [country, region, city, name, price, age, gender, nationality, description, userId, image]
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP) RETURNING *`, 
+      [country, region, city, name, price, age, gender, nationality, description, userId, coverImage, phone, whatsapp, exturl]
     );
-    //res.json(newAdd.rows);
+    //console.log("ad added:", newProduct.rows[0].ad_id)   
+
+    // Adding additional images into db
+    for ( let adimage of additionalImages) {
+      try {
+        const addImages = await pool.query(`
+          INSERT INTO ads_images (ad_id, images, created_at)
+          VALUES ($1, $2, CURRENT_TIMESTAMP) RETURNING *`,
+          [newProduct.rows[0].ad_id, adimage]
+        );
+      } catch (error) {
+        console.error(error.message);
+      }
+    }
+
+    // Adding into ads_tag with gender ads Male = 2, Female = 3, Transsexual = 4
+    let tag_ids = [];
+    if( newProduct.rows[0].gender === "Male" ) {
+      tag_ids = [2, 5, 6];
+    } else if( newProduct.rows[0].gender === "Transsexual" ) {
+      tag_ids = [4];
+    } else {
+      tag_ids = [3];
+    }
+    for (const tag_id of tag_ids) {
+      const newAdTag = await pool.query(
+        `INSERT INTO ads_tags (
+          ad_id, 
+          tag_id, 
+          created_at
+        ) 
+        VALUES ($1, $2, CURRENT_TIMESTAMP) 
+        RETURNING *`,
+        [newProduct.rows[0].ad_id, tag_id]
+      );
+      console.log("Inserted tag:", newAdTag.rows[0]);
+    }
+
+    // Adding into ads_tag with tag mentioned in description
+    let descrip_tag_ids = [];
+    if( newProduct.rows[0].description.toLowerCase().includes("massage") ) {
+      descrip_tag_ids = [7];
+    } 
+    if( newProduct.rows[0].description.toLowerCase().includes("mature") ) {
+      descrip_tag_ids = [8];
+    } 
+    if( newProduct.rows[0].description.toLowerCase().includes("indian") || newProduct.rows[0].nationality == 6 ) {
+      descrip_tag_ids = [9];
+    } 
+    if( newProduct.rows[0].description.toLowerCase().includes("asian") || newProduct.rows[0].nationality == 7 ) {
+      descrip_tag_ids = [10];
+    }
+    if( newProduct.rows[0].description.toLowerCase().includes("african") || newProduct.rows[0].nationality == 11 ) {
+      descrip_tag_ids = [11];
+    }
+    for (const tag_id of descrip_tag_ids) {
+      const newAdTag = await pool.query(
+        `INSERT INTO ads_tags (
+          ad_id, 
+          tag_id, 
+          created_at
+        ) 
+        VALUES ($1, $2, CURRENT_TIMESTAMP) 
+        RETURNING *`,
+        [newProduct.rows[0].ad_id, tag_id]
+      );
+      console.log("Inserted tag:", newAdTag.rows[0]);
+    }
+
     res.json({
         message: 'Product added successfully.',
         product: newProduct
-      });
+    });
+
   } catch (error) {
     res.status(422).json({ error: error });
     console.error(error.message);
@@ -180,13 +203,24 @@ export const GetAllbyCountry = async (req, res) => {
   try {
     const {countryID} = req.params;
     const allAds = await pool.query(
-      `SELECT a.*, c.name AS cityname
+      `SELECT a.*, c.name AS cityname, i.filename as coverimage 
        FROM ads a
-       JOIN cities c ON a.city = c.id
+       JOIN cities c ON a.city = c.id 
+       JOIN images i ON a.image_id = i.id 
        WHERE a.status = 1 AND c.country_id = $1
        ORDER BY a.created_at DESC`,
       [countryID]
-    );      
+    );
+
+    // Getting cover image link
+    let index = 0;
+    for (let oneAd of allAds.rows) {
+      const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+      allAds.rows[index].coverImageLink = coverImageUrl.message;
+      index++;
+    }
+    //console.log("ads:", allAds.rows);
+
       res.status(200).json({
           message: 'Fetched Products successfully.',
           products: allAds.rows
@@ -204,14 +238,25 @@ export const GetByCity = async (req, res) => {
     const city_id = extractIDfromSlug(slug);
 
     const allAds = await pool.query(
-      `SELECT a.*, c.name AS cityname
+      `SELECT a.*, c.name AS cityname, i.filename as coverimage 
        FROM ads a
-       JOIN cities c ON a.city = c.id
+       JOIN cities c ON a.city = c.id 
+       JOIN images i ON a.image_id = i.id 
        WHERE a.status = 1 AND c.id = $1
        ORDER BY a.created_at DESC`,
       [city_id]
     );
+
+    // Getting cover image link
+    let index = 0;
+    for (let oneAd of allAds.rows) {
+      const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+      allAds.rows[index].coverImageLink = coverImageUrl.message;
+      index++;
+    }
+    
       //console.log(allAds.rows);
+      
       res.status(200).json({
           message: 'Fetched Products successfully.',
           products: allAds.rows
@@ -226,27 +271,24 @@ export const GetByCity = async (req, res) => {
 export const GetByAuthor = async (req, res) => {
   try {
       const authorProducts = await pool.query(
-        "SELECT * FROM ads WHERE user_id = $1 ORDER BY created_at DESC",
+        `SELECT a.*, c.name AS cityname, i.filename as coverimage 
+        FROM ads a 
+        JOIN cities c ON a.city = c.id 
+        JOIN images i ON a.image_id = i.id 
+        WHERE a.user_id = $1 ORDER BY a.created_at DESC`,
         [req.decoded.userId]
       );
-      //console.log(authorProducts.rows);
-      res.status(200).json({
-          message: 'Fetched Products successfully.',
-          products: authorProducts.rows
-      });
-  } catch (error) {
-      console.error(error.message);
-      res.status(400).send({ error: error })
-  }
-};
 
-// Getting all products by author with in review status
-export const GetByAuthorNew = async (req, res) => {
-  try {
-      const authorProducts = await pool.query(
-        "SELECT * FROM ads WHERE user_id = $1 AND status = 0 ORDER BY created_at DESC",
-        [req.decoded.userId]
-      );
+      // Getting cover image link
+      let index = 0;
+      for (let oneAd of authorProducts.rows) {
+        const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+        authorProducts.rows[index].coverImageLink = coverImageUrl.message;
+        index++;
+      }
+
+      //console.log(authorProducts.rows);
+
       res.status(200).json({
           message: 'Fetched Products successfully.',
           products: authorProducts.rows
@@ -261,9 +303,53 @@ export const GetByAuthorNew = async (req, res) => {
 export const GetByAuthorActive = async (req, res) => {
   try {
       const authorProducts = await pool.query(
-        "SELECT * FROM ads WHERE user_id = $1 AND status = 1 ORDER BY created_at DESC",
+        `SELECT a.*, c.name AS cityname, i.filename as coverimage 
+        FROM ads a 
+        JOIN cities c ON a.city = c.id 
+        JOIN images i ON a.image_id = i.id 
+        WHERE a.user_id = $1 AND a.status = 1 
+        ORDER BY a.created_at DESC`,
         [req.decoded.userId]
       );
+
+      // Getting cover image link
+      let index = 0;
+      for (let oneAd of authorProducts.rows) {
+        const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+        authorProducts.rows[index].coverImageLink = coverImageUrl.message;
+        index++;
+      }
+
+      res.status(200).json({
+          message: 'Fetched Products successfully.',
+          products: authorProducts.rows
+      });
+  } catch (error) {
+      console.error(error.message);
+      res.status(400).send({ error: error })
+  }
+};
+
+// Getting all products by author with in review status
+export const GetByAuthorNew = async (req, res) => {
+  try {
+      const authorProducts = await pool.query(
+        `SELECT a.*, c.name AS cityname, i.filename as coverimage  
+        FROM ads a 
+        JOIN cities c ON a.city = c.id 
+        JOIN images i ON a.image_id = i.id 
+        WHERE a.user_id = $1 AND a.status = 0 ORDER BY a.created_at DESC`,
+        [req.decoded.userId]
+      );
+
+      // Getting cover image link
+      let index = 0;
+      for (let oneAd of authorProducts.rows) {
+        const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+        authorProducts.rows[index].coverImageLink = coverImageUrl.message;
+        index++;
+      }
+
       res.status(200).json({
           message: 'Fetched Products successfully.',
           products: authorProducts.rows
@@ -282,9 +368,37 @@ export const GetById = async (req, res) => {
 
   try {
       const product = await pool.query(
-        "SELECT a.*, c.name AS cityname FROM ads a JOIN cities c ON a.city = c.id WHERE a.ad_id = $1 AND a.status = 1",
+        `SELECT a.*, c.name AS cityname, i.filename as coverimage 
+          FROM ads a 
+          JOIN cities c ON a.city = c.id 
+          JOIN images i ON a.image_id = i.id 
+          WHERE a.ad_id = $1 AND a.status = 1`,
         [ad_id]
       );
+
+      // Getting cover image link
+      const coverImageUrl = await getPresignUrl(`${product.rows[0].coverimage}`, ``, "getObject");
+      product.rows[0].coverImageLink = coverImageUrl.message;
+
+      // Getting additional images
+      const additionalImages = await pool.query(
+        `SELECT a.*, i.filename as addimage 
+          FROM ads_images a 
+          JOIN images i ON a.images = i.id 
+          WHERE a.ad_id = $1 ORDER BY a.created_at ASC`,
+        [ad_id]
+      );
+
+      let additionalImagesArray = [];
+      let index = 1;
+      for (let additionalImage of additionalImages.rows) {
+        const presignedUrl = await getPresignUrl(`${additionalImage.addimage}`, ``, "getObject");
+        additionalImagesArray.push(presignedUrl.message);
+      }
+      product.rows[0].additionalImages = additionalImagesArray;
+
+      //console.log("ad adds:", product.rows[0]);
+
       res.status(200).json({
           message: 'Fetched Product successfully.',
           product: product.rows
@@ -295,6 +409,74 @@ export const GetById = async (req, res) => {
   }
 };
 
+// Getting all active ads by tag
+export const GetBySlug = async (req, res) => {
+  try {
+    const {tag_id} = req.params;
+
+    const allAds = await pool.query(
+      `SELECT a.*, at.id, c.name AS cityname, i.filename as coverimage  
+       FROM ads a
+       JOIN ads_tags at ON a.ad_id = at.ad_id 
+       JOIN cities c ON a.city = c.id 
+       JOIN images i ON a.image_id = i.id 
+       WHERE a.status = 1 AND at.tag_id = $1
+       ORDER BY a.created_at DESC`,
+      [tag_id]
+    );
+
+    // Getting cover image link
+    let index = 0;
+    for (let oneAd of allAds.rows) {
+      const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+      allAds.rows[index].coverImageLink = coverImageUrl.message;
+      index++;
+    }
+          
+      res.status(200).json({
+          message: 'Fetched Products successfully.',
+          products: allAds.rows
+      });
+  } catch (error) {
+      console.error(error.message);
+      res.status(400).send({ error: error })
+  }    
+}
+
+// Getting all active ads by tag and city
+export const GetBySlugAndCity = async (req, res) => {
+  try {
+    const {tag_id, city} = req.params;
+    const city_id = extractIDfromSlug(city);
+
+    const allAds = await pool.query(
+      `SELECT a.*, at.id, c.name AS cityname, i.filename as coverimage  
+       FROM ads a
+       JOIN ads_tags at ON a.ad_id = at.ad_id 
+       JOIN cities c ON a.city = c.id 
+       JOIN images i ON a.image_id = i.id 
+       WHERE a.status = 1 AND a.city = $2 AND at.tag_id = $1
+       ORDER BY a.created_at DESC`,
+      [tag_id, city_id]
+    );
+
+    // Getting cover image link
+    let index = 0;
+    for (let oneAd of allAds.rows) {
+      const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+      allAds.rows[index].coverImageLink = coverImageUrl.message;
+      index++;
+    }
+          
+      res.status(200).json({
+          message: 'Fetched Products successfully.',
+          products: allAds.rows
+      });
+  } catch (error) {
+      console.error(error.message);
+      res.status(400).send({ error: error })
+  }    
+}
 
 
 
