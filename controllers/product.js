@@ -133,38 +133,30 @@ export const Add = async (req, res) => {
         RETURNING *`,
         [newProduct.rows[0].ad_id, tag_id]
       );
-      console.log("Inserted tag:", newAdTag.rows[0]);
+      console.log("Inserted genger tag:", newAdTag.rows[0]);
     }
 
     // Adding into ads_tag with tag mentioned in description
-    let descrip_tag_ids = [];
-    if( newProduct.rows[0].description.toLowerCase().includes("massage") ) {
-      descrip_tag_ids = [7];
-    } 
-    if( newProduct.rows[0].description.toLowerCase().includes("mature") ) {
-      descrip_tag_ids = [8];
-    } 
-    if( newProduct.rows[0].description.toLowerCase().includes("indian") || newProduct.rows[0].nationality == 6 ) {
-      descrip_tag_ids = [9];
-    } 
-    if( newProduct.rows[0].description.toLowerCase().includes("asian") || newProduct.rows[0].nationality == 7 ) {
-      descrip_tag_ids = [10];
-    }
-    if( newProduct.rows[0].description.toLowerCase().includes("african") || newProduct.rows[0].nationality == 11 ) {
-      descrip_tag_ids = [11];
-    }
-    for (const tag_id of descrip_tag_ids) {
-      const newAdTag = await pool.query(
-        `INSERT INTO ads_tags (
-          ad_id, 
-          tag_id, 
-          created_at
-        ) 
-        VALUES ($1, $2, CURRENT_TIMESTAMP) 
-        RETURNING *`,
-        [newProduct.rows[0].ad_id, tag_id]
-      );
-      console.log("Inserted tag:", newAdTag.rows[0]);
+    let alltags;
+    const tags = await pool.query( `SELECT * FROM tags WHERE id > 6`);
+    if( tags.rows ) {
+      alltags = tags.rows;
+      alltags.forEach(product => {
+        if( newProduct.rows[0].description.toLowerCase().includes(product.slug) ) {
+          console.log(`The description contains the slug: ${product.slug}`);
+          const newAdTag = pool.query(
+            `INSERT INTO ads_tags (
+              ad_id, 
+              tag_id, 
+              created_at
+            ) 
+            VALUES ($1, $2, CURRENT_TIMESTAMP) 
+            RETURNING *`,
+            [ newProduct.rows[0].ad_id, product.id]
+          );
+          console.log("Inserted tag:", product.text);
+        }
+      }); 
     }
 
     res.json({
@@ -412,7 +404,7 @@ export const GetById = async (req, res) => {
 // Getting all active ads by tag
 export const GetBySlug = async (req, res) => {
   try {
-    const {tag_id} = req.params;
+    const {tag_id, country_id} = req.params;
 
     const allAds = await pool.query(
       `SELECT a.*, at.id, c.name AS cityname, i.filename as coverimage  
@@ -420,9 +412,9 @@ export const GetBySlug = async (req, res) => {
        JOIN ads_tags at ON a.ad_id = at.ad_id 
        JOIN cities c ON a.city = c.id 
        JOIN images i ON a.image_id = i.id 
-       WHERE a.status = 1 AND at.tag_id = $1
+       WHERE a.status = 1 AND a.country_id = $2 AND at.tag_id = $1 
        ORDER BY a.created_at DESC`,
-      [tag_id]
+      [tag_id, country_id]
     );
 
     // Getting cover image link
@@ -446,7 +438,7 @@ export const GetBySlug = async (req, res) => {
 // Getting all active ads by tag and city
 export const GetBySlugAndCity = async (req, res) => {
   try {
-    const {tag_id, city} = req.params;
+    const {tag_id, city, country_id} = req.params;
     const city_id = extractIDfromSlug(city);
 
     const allAds = await pool.query(
@@ -455,9 +447,9 @@ export const GetBySlugAndCity = async (req, res) => {
        JOIN ads_tags at ON a.ad_id = at.ad_id 
        JOIN cities c ON a.city = c.id 
        JOIN images i ON a.image_id = i.id 
-       WHERE a.status = 1 AND a.city = $2 AND at.tag_id = $1
+       WHERE a.status = 1 AND a.city = $2 AND a.country_id = $3 AND at.tag_id = $1
        ORDER BY a.created_at DESC`,
-      [tag_id, city_id]
+      [tag_id, city_id, country_id]
     );
 
     // Getting cover image link

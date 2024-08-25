@@ -1,13 +1,6 @@
-import dotenv from 'dotenv';
 import { extractIDfromSlug } from '../utils/extractIDfromSlug.js';
-
-
 // Connect to the database
 import pool from '../db/db.js';
-
-// Getting variables
-dotenv.config();
-const country = process.env.COUNTRY;
 
 
 // Getting all cities by region
@@ -36,7 +29,7 @@ export const GetByCountry = async (req, res) => {
     const { countryID } = req.params;
     try {
         const cities = await pool.query(
-            `SELECT c.name, c.id
+            `SELECT DISTINCT c.name, c.id
              FROM cities c
              JOIN ads a ON c.id = a.city
              WHERE c.country_id = $1 AND a.status = 1

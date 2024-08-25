@@ -110,17 +110,17 @@ router.get('/getByCity/:slug', productController.GetByCity);
 router.get('/getById/:id', productController.GetById);
 
 /**
- * @route GET /api/product/getBySlug
- * @description Get products by tag id
+ * @route GET /api/product/getBySlug/slug/country
+ * @description Get products by tag id in separate country
  * @access Public
  */
-router.get('/getBySlug/:tag_id', productController.GetBySlug);
+router.get('/getBySlug/:tag_id/:country_id', productController.GetBySlug);
 
 /**
- * @route GET /api/product/getBySlugAndCity/slug/city
+ * @route GET /api/product/getBySlugAndCity/slug/city/country
  * @description Get products by tag id and city 
  */
-router.get('/getBySlugAndCity/:tag_id/:city', productController.GetBySlugAndCity);
+router.get('/getBySlugAndCity/:tag_id/:city/:country_id', productController.GetBySlugAndCity);
 
 
 

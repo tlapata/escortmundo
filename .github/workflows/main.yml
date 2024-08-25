@@ -1,35 +1,40 @@
-#name: Deploy on Push
+name: Deploy on Push
 
-#on:
- # push:
-  #  branches:
-   #   - main
+on:
+  push:
+    branches:
+      - main
 
-#jobs:
- # build:
-  #  runs-on: self-hosted
+jobs:
+  build:
+    runs-on: self-hosted
 
-   # strategy:
-    #  matrix:
-     #   node-version: [25.5.1]
+    strategy:
+      matrix:
+        node-version: [22.x]
 
-    #steps:
-     # - uses: actions/checkout@v4
-      #- name: Use Node.js ${{ matrix.node-version }}
-       # uses: actions/setup-node@v4
-        #with:
-         # node-version: ${{ matrix.node-version }}
-          #cache: "npm"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      #- name: Install dependencies
-       # run: npm ci
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-     # - name: rsync deployments
-      #  uses: burnett01/rsync-deployments@5.1
-       # with:
-        #  switches: -avzr --delete
-         # path: ./*
-          #remote_path: /
-#          remote_host: ec2-13-51-53-216.eu-north-1.compute.amazonaws.com
- #         remote_user: ec2-user
-  #        remote_key: "${{ secrets.SSH_PRIVATE_KEY }}"
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rsync deployments
+        uses: burnett01/rsync-deployments@5.1
+        with:
+          switches: -avzr --delete
+          path: ./*
+          remote_path: /escortmundo/ # Ensure this path has the correct permissions
+          remote_host: ec2-16-170-187-226.eu-north-1.compute.amazonaws.com
+          remote_user: ec2-user
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Clean up
+        run: rm -rf node_modules # Clean up to save space if needed
