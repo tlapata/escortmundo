@@ -170,7 +170,7 @@ export const Add = async (req, res) => {
   }
 };
 
-// Getting all active ads by country
+// Getting all active ads
 export const GetAll = async (req, res) => {
     try {
       const allAds = await pool.query(
@@ -193,15 +193,26 @@ export const GetAll = async (req, res) => {
 // Getting all active ads by country
 export const GetAllbyCountry = async (req, res) => {
   try {
-    const {countryID} = req.params;
+    const { countryID } = req.params;
+    const { limit = 6, page = 1, search = '', gender = '', ageFrom = 18, ageTo = 200 } = req.query;
+    const offset = (page - 1) * limit;
+    const genderArray = gender ? gender.split(',') : ['female','male','transsexual'];
+
     const allAds = await pool.query(
-      `SELECT a.*, c.name AS cityname, i.filename as coverimage 
+      `SELECT a.*, c.name AS cityname, i.filename as coverimage, u.pro, u.pro_valid AS turbo 
        FROM ads a
        JOIN cities c ON a.city = c.id 
        JOIN images i ON a.image_id = i.id 
-       WHERE a.status = 1 AND c.country_id = $1
-       ORDER BY a.created_at DESC`,
-      [countryID]
+       JOIN users u ON a.user_id = u.id 
+       WHERE a.status = 1 
+              AND c.country_id = $1 
+              AND a.created_at + INTERVAL '6 MONTH' >= now() 
+              AND a.description ILIKE '%' || $4 || '%' 
+              AND LOWER(a.gender) = ANY($5::text[])
+              AND a.age >= $6 AND a.age <= $7
+       ORDER BY a.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [countryID, limit, offset, search, genderArray, ageFrom, ageTo]
     );
 
     // Getting cover image link
@@ -211,16 +222,34 @@ export const GetAllbyCountry = async (req, res) => {
       allAds.rows[index].coverImageLink = coverImageUrl.message;
       index++;
     }
-    //console.log("ads:", allAds.rows);
 
-      res.status(200).json({
-          message: 'Fetched Products successfully.',
-          products: allAds.rows
-      });
+    // Fetch total count for pagination info
+    const totalAds = await pool.query(
+      `SELECT COUNT(*) FROM ads a
+       JOIN cities c ON a.city = c.id
+       WHERE a.status = 1 AND c.country_id = $1 AND a.created_at + INTERVAL '6 MONTH' >= now()
+              AND a.description ILIKE '%' || $2 || '%'
+              AND LOWER(a.gender) = ANY($3::text[])
+              AND a.age >= $4 AND a.age <= $5`,
+      [countryID, search, genderArray, ageFrom, ageTo]
+    );
+
+    const totalPages = Math.ceil(totalAds.rows[0].count / limit);
+
+    res.status(200).json({
+      message: 'Fetched products successfully.',
+      products: allAds.rows,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: totalPages,
+        totalProducts: totalAds.rows[0].count,
+      },
+    });
+
   } catch (error) {
-      console.error(error.message);
-      res.status(400).send({ error: error })
-  }    
+    console.error(error.message);
+    res.status(400).send({ error: error });
+  }
 };
 
 // Getting all active ads by city
@@ -228,16 +257,28 @@ export const GetByCity = async (req, res) => {
   try {
     const {slug} = req.params;
     const city_id = extractIDfromSlug(slug);
+    const { limit = 6, page = 1, search = '', gender = '', ageFrom = 18, ageTo = 200} = req.query;
+    const offset = (page - 1) * limit;
+
+    const genderArray = gender ? gender.split(',') : ['female','male','transsexual'];
 
     const allAds = await pool.query(
       `SELECT a.*, c.name AS cityname, i.filename as coverimage 
        FROM ads a
        JOIN cities c ON a.city = c.id 
        JOIN images i ON a.image_id = i.id 
-       WHERE a.status = 1 AND c.id = $1
-       ORDER BY a.created_at DESC`,
-      [city_id]
+       WHERE a.status = 1 
+              AND c.id = $1 
+              AND a.created_at + INTERVAL '6 MONTH' >= now()
+              AND a.description ILIKE '%' || $4 || '%'
+              AND LOWER(a.gender) = ANY($5::text[])
+              AND a.age >= $6 AND a.age <= $7
+       ORDER BY a.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [city_id, limit, offset, search, genderArray, ageFrom, ageTo]
     );
+
+    //console.log(allAds.rows);
 
     // Getting cover image link
     let index = 0;
@@ -247,12 +288,28 @@ export const GetByCity = async (req, res) => {
       index++;
     }
     
-      //console.log(allAds.rows);
+    // Fetch total count for pagination info
+    const totalAds = await pool.query(
+      `SELECT COUNT(*) FROM ads a
+       JOIN cities c ON a.city = c.id 
+       WHERE a.status = 1 AND c.id = $1 AND a.created_at + INTERVAL '6 MONTH' >= now()
+              AND a.description ILIKE '%' || $2 || '%'
+              AND LOWER(a.gender) = ANY($3::text[])
+              AND a.age >= $4 AND a.age <= $5`,
+      [city_id, search, genderArray, ageFrom, ageTo]
+    );
+
+    const totalPages = Math.ceil(totalAds.rows[0].count / limit);
       
-      res.status(200).json({
-          message: 'Fetched Products successfully.',
-          products: allAds.rows
-      });
+    res.status(200).json({
+        message: 'Fetched products successfully.',
+        products: allAds.rows,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: totalPages,
+          totalProducts: totalAds.rows[0].count,
+        },
+    });
   } catch (error) {
       console.error(error.message);
       res.status(400).send({ error: error })
@@ -261,8 +318,28 @@ export const GetByCity = async (req, res) => {
 
 // Getting all products by author
 export const GetByAuthor = async (req, res) => {
+
+  const { status } = req.params;
+
   try {
-      const authorProducts = await pool.query(
+
+    let authorProducts;
+
+    if( status && status === 'expired' ) {
+
+      authorProducts = await pool.query(
+        `SELECT a.*, c.name AS cityname, i.filename as coverimage 
+        FROM ads a 
+        JOIN cities c ON a.city = c.id 
+        JOIN images i ON a.image_id = i.id 
+        WHERE a.user_id = $1 AND 
+            a.created_at + INTERVAL '6 MONTH' < now() 
+        ORDER BY a.created_at DESC`,
+        [req.decoded.userId]
+      );
+
+    } else {
+      authorProducts = await pool.query(
         `SELECT a.*, c.name AS cityname, i.filename as coverimage 
         FROM ads a 
         JOIN cities c ON a.city = c.id 
@@ -270,6 +347,7 @@ export const GetByAuthor = async (req, res) => {
         WHERE a.user_id = $1 ORDER BY a.created_at DESC`,
         [req.decoded.userId]
       );
+    }
 
       // Getting cover image link
       let index = 0;
@@ -299,7 +377,8 @@ export const GetByAuthorActive = async (req, res) => {
         FROM ads a 
         JOIN cities c ON a.city = c.id 
         JOIN images i ON a.image_id = i.id 
-        WHERE a.user_id = $1 AND a.status = 1 
+        WHERE a.user_id = $1 AND a.status = 1 AND 
+            a.created_at + INTERVAL '6 MONTH' >= now()
         ORDER BY a.created_at DESC`,
         [req.decoded.userId]
       );
@@ -324,6 +403,7 @@ export const GetByAuthorActive = async (req, res) => {
 
 // Getting all products by author with in review status
 export const GetByAuthorNew = async (req, res) => {
+  console.log(req.params);
   try {
       const authorProducts = await pool.query(
         `SELECT a.*, c.name AS cityname, i.filename as coverimage  
@@ -360,11 +440,13 @@ export const GetById = async (req, res) => {
 
   try {
       const product = await pool.query(
-        `SELECT a.*, c.name AS cityname, i.filename as coverimage 
+        `SELECT a.*, c.name AS cityname, i.filename as coverimage, u.pro, u.pro_valid AS turbo  
           FROM ads a 
           JOIN cities c ON a.city = c.id 
           JOIN images i ON a.image_id = i.id 
-          WHERE a.ad_id = $1 AND a.status = 1`,
+          JOIN users u ON a.user_id = u.id           
+          WHERE a.ad_id = $1 AND a.status = 1 AND 
+            a.created_at + INTERVAL '6 MONTH' >= now()`,
         [ad_id]
       );
 
@@ -392,7 +474,7 @@ export const GetById = async (req, res) => {
       //console.log("ad adds:", product.rows[0]);
 
       res.status(200).json({
-          message: 'Fetched Product successfully.',
+          message: 'Fetched a product successfully.',
           product: product.rows
       });
   } catch (error) {
@@ -470,6 +552,47 @@ export const GetBySlugAndCity = async (req, res) => {
   }    
 }
 
+// Checking how many ads user added today (to go pro)
+export const CheckAdDayQty = async (req, res) => {
+  try {
+    const authorProducts = await pool.query(
+      `SELECT COUNT(a.*) AS ad_count, u.pro, u.pro_valid 
+      FROM ads a 
+      JOIN users u ON $1 = u.id 
+      WHERE a.user_id = $1 AND a.created_at >= now() - INTERVAL '24 HOURS'
+      GROUP BY u.pro, u.pro_valid`,
+      [req.decoded.userId]
+    );
+
+    console.log(authorProducts.rows[0]);
+
+    /*res.status(200).json({
+        message: 'Fetched ads quantity successfully.',
+        qty: authorProducts.rows[0].ad_count,
+        pro: authorProducts.rows[0]
+    });*/    
+
+    if (authorProducts.rows.length > 0) {
+      res.status(200).json({
+        message: 'Fetched ads quantity successfully.',
+        qty: authorProducts.rows[0].ad_count || 0,
+        pro: authorProducts.rows[0].pro || null,
+        pro_valid: authorProducts.rows[0].pro_valid || null
+      });
+    } else {
+      res.status(200).json({
+        message: 'No ads found for this user in the last 24 hours.',
+        qty: 0,
+        pro: null,
+        pro_valid: null
+      });
+    }
+
+  } catch (error) {
+    console.error(error.message);
+    res.status(400).send({ error: error.message })
+  }
+}
 
 
 
@@ -576,6 +699,13 @@ export const GetAllPaginated = (req, res) => {
     })
     .catch(error => res.status(400).send({ error: error }));
 };
+
+
+
+
+
+
+
 
 // Getting total quantity of products = mv8
 export const total = (req, res) => {

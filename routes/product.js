@@ -82,6 +82,13 @@ router.get('/getAllbyCountry/:countryID', productController.GetAllbyCountry);
 router.get('/getByAuthor', requireAuth, productController.GetByAuthor);
 
 /**
+ * @route GET /api/product/getByAuthor/expired
+ * @description Get products by user (authenticated user)
+ * @access Private (requireAuth middleware)
+ */
+router.get('/getByAuthor/:status', requireAuth, productController.GetByAuthor);
+
+/**
  * @route GET /api/product/getByAuthorNew
  * @description Get new (in review) products by user (authenticated user)
  * @access Private (requireAuth middleware)
@@ -122,6 +129,11 @@ router.get('/getBySlug/:tag_id/:country_id', productController.GetBySlug);
  */
 router.get('/getBySlugAndCity/:tag_id/:city/:country_id', productController.GetBySlugAndCity);
 
+/**
+ * @route GET /api/product/checkAdDayQty
+ * @description Checking how many ads user added today (to go pro)
+ */
+router.get('/checkAdDayQty', requireAuth, productController.CheckAdDayQty);
 
 
 

@@ -32,12 +32,13 @@ export const GetByCountry = async (req, res) => {
             `SELECT DISTINCT c.name, c.id
              FROM cities c
              JOIN ads a ON c.id = a.city
-             WHERE c.country_id = $1 AND a.status = 1
+             WHERE c.country_id = $1 AND a.status = 1 AND 
+                                        a.created_at + INTERVAL '6 MONTH' >= now() 
              ORDER BY c.name ASC`,
             [countryID]
         );
         res.status(200).json({
-            message: 'Fetched Cities successfully.',
+            message: 'Fetched cities successfully.',
             cities: cities.rows
         });
     } catch (error) {

@@ -11,6 +11,7 @@ import countryRoutes from "./routes/country.js";
 import regionRoutes from "./routes/region.js";
 import cityRoutes from "./routes/city.js";
 import tagRoutes from  "./routes/tag.js";
+import userRoutes from  "./routes/user.js";
 
 
 // Getting variables
@@ -47,6 +48,7 @@ app.use('/api/country', countryRoutes);
 app.use('/api/region', regionRoutes);
 app.use('/api/city', cityRoutes);
 app.use('/api/tag', tagRoutes);
+app.use('/api/user', userRoutes);
 
 
 
