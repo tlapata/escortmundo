@@ -27,7 +27,8 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:3002',
   'http://localhost:3003',
-  'https://escortmundo-com.onrender.com'
+  'https://escortmundo-com.onrender.com',
+  'https://emfrontend-uk.onrender.com'
 ];
 app.use(cors({
   origin: (origin, callback) => {
