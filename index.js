@@ -36,7 +36,7 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
@@ -92,17 +92,6 @@ app.put("/update-ad/:ad_id", async(req, res) => {
       [description, ad_id]
     );
     res.json("The ad was updated successfully!");
-  } catch (error) {
-    console.log(error.message);
-  }
-});
-
-// delete ad
-app.delete("/delete-ad/:ad_id", async(req, res) => {
-  try {
-    const {ad_id} = req.params;
-    const deletedAd = await pool.query("DELETE FROM ads WHERE ad_id = $1", [ad_id]);
-    res.json("The ad was deleted.");
   } catch (error) {
     console.log(error.message);
   }

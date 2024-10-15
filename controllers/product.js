@@ -447,9 +447,10 @@ export const GetByAuthorNew = async (req, res) => {
 
 // Getting the product by id
 export const GetById = async (req, res) => {
-  
+
   const { id } = req.params;
   const ad_id = extractIDfromSlug(id);
+  const reviewer = req.decoded?.userId || 0;
 
   try {
       const product = await pool.query(
@@ -458,10 +459,14 @@ export const GetById = async (req, res) => {
           JOIN cities c ON a.city = c.id 
           JOIN images i ON a.image_id = i.id 
           JOIN users u ON a.user_id = u.id           
-          WHERE a.ad_id = $1 AND a.status = 1 AND 
+          WHERE a.ad_id = $1 AND (a.status = 1 OR (a.status = 0 AND $2 > 0)) AND 
             a.created_at + INTERVAL '6 MONTH' >= now()`,
-        [ad_id]
+        [ad_id, reviewer]
       );
+
+      if( product.rows.length === 0 ) {
+        return res.status(404).send({ error: 'Ad not found.' });
+      }
 
       // Getting cover image link
       const coverImageUrl = await getPresignUrl(`${product.rows[0].coverimage}`, ``, "getObject");
@@ -607,6 +612,69 @@ export const CheckAdDayQty = async (req, res) => {
   }
 }
 
+// Admin approving the new ad
+export const UpdateStatus = async (req, res) => {
+
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ error: errors.array() })
+  }
+
+  const {id} = req.params;
+
+  try {    
+    const updatedAd = await pool.query(
+      "UPDATE ads SET status = 1 WHERE ad_id = $1", 
+      [id]
+    );
+    res.json({
+      message: 'The ad was approved successfully.',
+      product: updatedAd
+    })
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
+// Admin deleting the add and user
+export const deleteProduct = async (req, res) => {
+
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ error: errors.array() })
+  }
+
+  const {id} = req.params;
+  console.log({ id });
+
+  try {
+    const product = await pool.query(
+      `SELECT user_id FROM ads WHERE ad_id = $1`,
+      [id]
+    );
+
+    if( product.rows.length === 0 ) {
+      return res.status(404).send({ error: 'Ad not found.' });
+    }
+
+    const deletedAd = await pool.query("DELETE FROM ads WHERE ad_id = $1", [id]);
+
+    const updatedUser = await pool.query(
+      "UPDATE users SET activated = false WHERE id = $1", 
+      [product.rows[0].user_id]
+    );
+
+    res.status(200).json({
+      message: 'The ad was deleted successfully.',
+      product: product
+    });  
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
+
+
 
 
 // Get all products paginated = mv8
@@ -712,13 +780,6 @@ export const GetAllPaginated = (req, res) => {
     })
     .catch(error => res.status(400).send({ error: error }));
 };
-
-
-
-
-
-
-
 
 // Getting total quantity of products = mv8
 export const total = (req, res) => {
@@ -1096,37 +1157,6 @@ export const UpdateImages = async (req, res) => {
     }
 };
 
-export const UpdateStock = async (req, res) => {
-    const errors = validationResult(req)
-    if (!errors.isEmpty()) {
-      return res.status(422).json({ error: errors.array() })
-    }
-  
-    const { id, action, qty } = req.body
-  
-    const product = await collection.findById(id)
-  
-    if (action === 'add') {
-      product.quantity = product.quantity + qty
-    } else if (product.quantity - qty >= 0) {
-      product.quantity = product.quantity - qty
-    } else {
-      return res
-        .status(400)
-        .send({ error: "Quantity can't be in negative" })
-    }
-  
-    try {
-      await collection.insertOne(product);
-      res.json({
-        message: 'Product Qauntity updated successfully.',
-        product: product
-      })
-    } catch (error) {
-      res.status(422).json({ error: error })
-    }
-};
-
 export const StatusChanged = async (req, res) => {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -1272,25 +1302,6 @@ export const GetLatestProduct = async (req, res) => {
       product: product,
       category: categories
     })
-};
-
-export const deleteProduct = async (req, res) => {
-    const { id } = req.params;
-    console.log({ id, x: req.decoded })
-  
-    // const product = await collection.findById(id);
-    const product = await collection.findOneAndUpdate({ _id: id, seller: mongoose.Types.ObjectId(req?.decoded?.userId) }, { isDeleted: true }, { new: true });
-    if (!product) {
-      return res.status(404).send({ error: 'No Product Found' })
-    }
-  
-    console.log({ product })
-    res.status(200).json({
-      message: 'Product Removed Successfully.',
-      data: {
-        product: product
-      }
-    });
 };
 
 export const likeProduct = async (req, res) => {

@@ -1,6 +1,7 @@
 import express from 'express';
 import { check } from 'express-validator';
 import requireAuth from '../middlewares/requireAuth.js';
+import authenticateAdmin from '../middlewares/requireAuthAdmin.js';
 import Upload from '../middlewares/multer/productMulter.js';
 import * as productController from '../controllers/product.js';
 
@@ -117,6 +118,13 @@ router.get('/getByCity/:slug', productController.GetByCity);
 router.get('/getById/:id', productController.GetById);
 
 /**
+ * @route GET /api/product/getByIdbyAdmin/:id
+ * @description Get a product by its ID by admin
+ * @access Private admin (requireAuthAdmin middleware)
+ */
+router.get('/getByIdbyAdmin/:id', authenticateAdmin, productController.GetById);
+
+/**
  * @route GET /api/product/getBySlug/slug/country
  * @description Get products by tag id in separate country
  * @access Public
@@ -135,7 +143,19 @@ router.get('/getBySlugAndCity/:tag_id/:city/:country_id', productController.GetB
  */
 router.get('/checkAdDayQty', requireAuth, productController.CheckAdDayQty);
 
+/**
+ * @route PATCH /api/product/updateStatus/:id
+ * @description Update ad status
+ * @access Private admin (requireAuthAdmin middleware)
+ */
+router.patch('/updateStatus/:id', authenticateAdmin, productController.UpdateStatus);
 
+/**
+ * @route DELETE /api/product/delete/:id
+ * @description Delete a product by its ID
+ * @access Private (requireAuth middleware)
+ */
+router.delete('/delete/:id', authenticateAdmin, productController.deleteProduct);
 
 
 
@@ -199,12 +219,6 @@ router.patch('/updateImage/:id', requireAuth, Upload.single('image'), productCon
  */
 router.patch('/updateImages/:id', requireAuth, multiUpload, productController.UpdateImages);
 
-/**
- * @route PATCH /api/product/updateStock
- * @description Update product stock
- * @access Private (requireAuth middleware)
- */
-router.patch('/updateStock', requireAuth, updateStockValidationRules, productController.UpdateStock);
 
 /**
  * @route PATCH /api/product/statusChanged
@@ -233,13 +247,6 @@ router.get('/getRating/:id', productController.GetRating);
  * @access Private (requireAuth middleware)
  */
 router.get('/get-latest-product', requireAuth, productController.GetLatestProduct);
-
-/**
- * @route DELETE /api/product/delete/:id
- * @description Delete a product by its ID
- * @access Private (requireAuth middleware)
- */
-router.delete('/delete/:id', requireAuth, productController.deleteProduct);
 
 /**
  * @route POST /api/product/like/:id

@@ -46,12 +46,8 @@ export const register = async (req, res) => {
             "INSERT INTO users (email, password, created_at, activated) VALUES($1, $2, CURRENT_TIMESTAMP, true) RETURNING *",
             [email, passwordHashed]
         );
-
-        console.log("new user id", newUser.rows[0].id);
         
         const token = jwt.sign({ userId: newUser.rows[0].id }, MY_SECRET_KEY, { expiresIn: '24h' });
-
-        console.log("token", token);
 
         res.setHeader('Authorization', `Bearer ${token}`);
         
