@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import bcrypt from 'bcrypt';
 import TokenGenerator from '../utils/tokenGenerator.js';
-import { sesEmail } from '../config/sesEmail.js';
 // Connect to the database
 import pool from '../db/db.js';
 
@@ -28,7 +27,7 @@ const MY_SECRET_KEY = process.env.MY_SECRET_KEY;
 //Register User Controller
 export const register = async (req, res) => {
 
-    const { email, password, subdomain } = req.body;
+    const { email, password } = req.body;
 
     // checking email 
     const isEmailExist = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
@@ -41,19 +40,30 @@ export const register = async (req, res) => {
     let passwordHashed = await hashPassword(password);
   
     try {
-        const confirmationToken = TokenGenerator(32);
+        //const confirmationToken = TokenGenerator(32);
 
         const newUser = await pool.query(
-            "INSERT INTO users (email, password, created_at, token) VALUES($1, $2, CURRENT_TIMESTAMP, $3) RETURNING *",
-            [email, passwordHashed, confirmationToken]
+            "INSERT INTO users (email, password, created_at, activated) VALUES($1, $2, CURRENT_TIMESTAMP, true) RETURNING *",
+            [email, passwordHashed]
         );
 
-        // Sending confirmation email
-        sesEmail("tanusharamonka@gmail.com", email, confirmationToken, subdomain);
+        console.log("new user id", newUser.rows[0].id);
         
-        const token = jwt.sign({ userId: newUser.id }, MY_SECRET_KEY);
+        const token = jwt.sign({ userId: newUser.rows[0].id }, MY_SECRET_KEY, { expiresIn: '24h' });
 
-        return res.status(201).json({
+        console.log("token", token);
+
+        res.setHeader('Authorization', `Bearer ${token}`);
+        
+        // Set HttpOnly and Secure cookie
+        res.cookie('authToken', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'Strict', 
+          path: '/'
+        });
+
+        res.status(200).json({
             message: 'You have registered successfully.',
             token: token,
         })
@@ -114,68 +124,6 @@ export const login = async (req, res) => {
 
 }
 
-// Confirm email
-export const confirmEmail = async (req, res) => {
-
-  if ( req.method === 'POST') {
-    const { token } = req.body;
-
-    // validation
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(422).json({ error: errors.array() })
-    }
-
-    try {
-
-      const user = await pool.query("SELECT id FROM users WHERE token = $1", [token]);
-
-      if (!user) {
-        return res.status(404).send({ error: 'Token Not Found' })
-      }
-
-      // Update the user's email confirmation status
-      const userID = user.rows[0].id;
-      const result = await pool.query(
-        "UPDATE users SET activated = true, token = NULL WHERE id = $1", 
-        [userID]
-      );
-      
-      // Check if rows were affected
-      if (result.rowCount > 0) {
-
-        const token = jwt.sign({ userId: userID }, MY_SECRET_KEY, { expiresIn: '1h' });
-        console.log(token);
-
-        res.setHeader('Authorization', `Bearer ${token}`);
-        
-        // Set HttpOnly and Secure cookie
-        res.cookie('authToken', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'Strict', 
-          path: '/'
-        });
-
-
-        res.status(200).json({
-          message: 'Email confirmed successfully.',
-          token: token,
-          userId: user.id
-        });
-
-      } else {
-        console.log('No rows were updated.');
-      }
-
-    } catch (error) {
-      res.status(500).json({ message: 'Internal server error' });
-    }   
-
-  } else {
-    res.status(405).json({ message: 'Method not allowed' });
-  }
-}
 
 
 

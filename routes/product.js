@@ -60,11 +60,11 @@ router.post('/add', requireAuth, multiUpload, addValidationRules, productControl
 
 
 /**
- * @route GET /api/product/getAll
+ * @route GET /api/product/getAll/status
  * @description Get all products
  * @access Public
  */
-router.get('/getAll', productController.GetAll);
+router.get('/getAll/:status', productController.GetAll);
 
 /**
  * @route GET /api/product/getAllbyCountry/countryID

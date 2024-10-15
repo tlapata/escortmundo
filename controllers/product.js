@@ -28,6 +28,7 @@ export const Add = async (req, res) => {
   }
 
   const { userId } = req.decoded;
+  console.log(userId);
   const {country, region, city, name, price, age, gender, nationality, description, phone, whatsapp, exturl} = req.body;
   const { profileImages }  = req.files;
 
@@ -172,18 +173,30 @@ export const Add = async (req, res) => {
 
 // Getting all active ads
 export const GetAll = async (req, res) => {
+  const { status } = req.params;
     try {
       const allAds = await pool.query(
-        `SELECT a.*, c.name AS cityname
+        `SELECT a.*, c.name AS cityname, i.filename as coverimage
          FROM ads a
          JOIN cities c ON a.city = c.id
-         WHERE a.status = 1 
-         ORDER BY a.created_at DESC`
-      );      
-        res.status(200).json({
-            message: 'Fetched Products successfully.',
-            products: allAds.rows
-        });
+         JOIN images i ON a.image_id = i.id 
+         WHERE a.status = $1 
+         ORDER BY a.created_at DESC`,
+         [status]
+      );
+
+      // Getting cover image link
+      let index = 0;
+      for (let oneAd of allAds.rows) {
+        const coverImageUrl = await getPresignUrl(`${oneAd.coverimage}`, ``, "getObject");
+        allAds.rows[index].coverImageLink = coverImageUrl.message;
+        index++;
+      }
+
+      res.status(200).json({
+          message: 'Fetched products successfully.',
+          products: allAds.rows
+      });
     } catch (error) {
         console.error(error.message);
         res.status(400).send({ error: error })

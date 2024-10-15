@@ -50,11 +50,6 @@ router.post("/login", loginValidationRules, authController.login);
  */
 router.post("/register", registerValidationRules, authController.register);
 
-/**
- * @Route Post /api/auth/confirm-email
- * Validating the request body and passing the request to the controller
- */
-router.post( "/confirm-email", confirmEmailValidationRules, authController.confirmEmail );
 
 
 
