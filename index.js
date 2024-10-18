@@ -30,11 +30,12 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:3002',
   'http://127.0.0.1:3000',
+  'https://verotel.com'
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.escortmundo.com')) {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.escortmundo.com') || origin.endsWith('.verotel.com') ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
