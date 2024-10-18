@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from "express";
 import cors from "cors";
 import pool from './db/db.js';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
@@ -76,49 +77,72 @@ const generateSignature = (params) => {
     return crypto.createHash('sha1').update(dataString, 'utf8').digest('hex');
 };
 
+// Get the directory name from the URL
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Create a writable stream for the log file
+const logFilePath = path.join(__dirname, 'verotel-callback.log');
+const logStream = fs.createWriteStream(logFilePath, { flags: 'a' }); // 'a' means append mode
+
+
 // Endpoint to handle the Verotel webhook (callback)
 app.get('/verotel/callback', (req, res) => {
-  const transactionData = req.query;
+  res.status(200).send('OK');
 
+  const transactionData = req.query;
   // Log the transaction data
   console.log('Received callback from Verotel:', transactionData);
 
-// Generate the signature for verification
-    const generatedSignature = generateSignature(transactionData);
+  // Log the transaction data to the log file
+  const logData = `Received callback from Verotel: ${JSON.stringify(transactionData)}\n`;
+  logStream.write(logData);
 
-    console.log('Generated Signature:', generatedSignature);
-    console.log('Received Signature:', transactionData.signature);
-    if (generatedSignature === transactionData.signature) {console.log('yes');}else{console.log('fck')}
+  // Generate the signature for verification
+  const generatedSignature = generateSignature(transactionData);
 
+  console.log('Generated Signature:', generatedSignature);
+  console.log('Received Signature:', transactionData.signature);
+
+  logStream.write(`Generated Signature: ${generatedSignature}\n`);
+  logStream.write(`Received Signature: ${transactionData.signature}\n`);  
+
+  if (generatedSignature === transactionData.signature) {console.log('yes!');}else{console.log('no:(');}
+
+  if (transactionData.type === 'purchase' && transactionData.payment === 'success') {
+    // Handle successful payment
+    console.log('Payment successful:', transactionData);
+  } else {
+    // Handle other types or failed transactions
+    console.log('Payment failed or other event:', transactionData);
+  }
+
+  /*
   // Compare the expected signature with the received one
   //if (expectedSignature === transactionData.signature) {
     if (transactionData.type === 'purchase' && transactionData.payment === 'success') {
       // Handle successful payment
       console.log('Payment successful:', transactionData);
       // Perform actions such as updating your database here
-      res.status(200).send('OK');
     } else {
       // Handle other types or failed transactions
       console.log('Payment failed or other event:', transactionData);
     }
     // Respond to Verotel to acknowledge the callback
-  /*} else {
+  } else {
     console.error('Invalid signature received from Verotel');
     res.status(403).send('Invalid signature'); // Forbidden response for invalid signature
-  }*/
+  }
+  */
 });
 
 
 
-// Get the directory name from the URL
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Serve static files from the 'public' directory
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // update ad
-app.put("/update-ad/:ad_id", async(req, res) => {
+app.put("/update-ad/:ad_id", async(req, res) => {  
   try {
     const {ad_id} = req.params;
     const {description} = req.body;
