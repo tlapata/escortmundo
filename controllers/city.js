@@ -1,4 +1,6 @@
 import { extractIDfromSlug } from '../utils/extractIDfromSlug.js';
+import { validationResult } from 'express-validator';
+
 // Connect to the database
 import pool from '../db/db.js';
 
@@ -47,17 +49,20 @@ export const GetByCountry = async (req, res) => {
     }
 };
 
-// Getting city by its id
+// Getting city by its slug
 export const GetByID = async (req, res) => {
+
     const {slug} = req.params;
     const city_id = extractIDfromSlug(slug);
+
     try {
         const city = await pool.query(`SELECT * FROM cities WHERE id = $1`,
             [city_id]
         );
+
         if( city.rows[0] ) {
             res.status(200).json({
-                message: 'Fetched City successfully.',
+                message: 'Fetched city successfully.',
                 city: city.rows
             });    
         } else {
@@ -67,4 +72,58 @@ export const GetByID = async (req, res) => {
         console.error(error.message);
         res.status(400).send({ error: error })
     }
+};
+
+// Getting city by its id by admin
+export const GetByIDbyAdmin = async (req, res) => {
+
+    const {id} = req.params;
+
+    try {
+        const city = await pool.query(`SELECT * FROM cities WHERE id = $1`,
+            [id]
+        );
+
+        if( city.rows[0] ) {
+            res.status(200).json({
+                message: 'Fetched city successfully.',
+                city: city.rows
+            });    
+        } else {
+            res.status(404).send({ error: error })
+        }
+    } catch (error) {
+        console.error(error.message);
+        res.status(400).send({ error: error })
+    }
+};
+
+// Update city description (seo text) By Admin
+export const UpdateByAdmin = async (req, res) => {
+  
+    const { id } = req.params;
+    const {description} = req.body;
+    console.log("index toure controller", description, id, req.decoded);
+
+    if(description) {
+        try {
+            const city = await pool.query(`
+                UPDATE cities SET description = $1 WHERE id = $2`,
+                [description, id]
+            );
+
+            if( city ) {
+                res.status(200).json({
+                    message: 'City updated successfully.',
+                });    
+            } else {
+                res.status(404).send({ error: error })
+            }
+        } catch (error) {
+            console.error(error.message);
+            res.status(400).send({ error: error })
+        }
+    } else {
+        console.error("No description.")
+    } 
 };

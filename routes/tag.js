@@ -1,5 +1,6 @@
 import express from 'express';
 import * as tagController from '../controllers/tag.js';
+import authenticateAdmin from '../middlewares/requireAuthAdmin.js';
 
 
 const router = express.Router();
@@ -25,4 +26,20 @@ router.get('/getAll/:country', tagController.GetAll);
 router.get('/getAllinCity/:city', tagController.GetAllinCity);
 
 
+/**
+ * @route GET /api/tag/getAllforAdmin
+ * @description Get all tags for admin
+ * @access Private admin (requireAuthAdmin middleware)
+ */
+router.get('/getAllforAdmin', authenticateAdmin, tagController.GetAllforAdmin);
+
+
+/**
+ * @route POST /api/tag/add
+ * @description Add a new tag
+ * @access Private admin (requireAuthAdmin middleware)
+ */
+router.post('/add', authenticateAdmin, tagController.Add);
+
+  
 export default router;

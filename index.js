@@ -4,6 +4,8 @@ import cors from "cors";
 import pool from './db/db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+
 // Routes
 import authRoutes from "./routes/auth.js";
 import productRoutes from "./routes/product.js";
@@ -26,8 +28,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:3002',
-  'http://localhost:3003',
+  'http://127.0.0.1:3000',
 ];
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.escortmundo.com')) {
@@ -51,6 +54,61 @@ app.use('/api/tag', tagRoutes);
 app.use('/api/user', userRoutes);
 
 
+const VEROTEL_SECRET_KEY = 'uE7g3rYwgd6YBEZh3TXZ5zdDPcCwE6';
+
+// Function to generate the signature
+const generateSignature = (params) => {
+
+    // Construct the string to be hashed (parameter concatenation)
+    const dataString = [
+      VEROTEL_SECRET_KEY,
+      `description=${params.description}`,
+      `priceAmount=${params.priceAmount}`,
+      `priceCurrency=${params.priceCurrency}`,
+      `shopID=${params.shopID}`,
+      `version=${params.version}`,
+      `type=${params.type}`
+    ].join(':');
+
+    console.log("datastring", dataString);
+
+    // Generate SHA-1 hash from the concatenated string
+    return crypto.createHash('sha1').update(dataString, 'utf8').digest('hex');
+};
+
+// Endpoint to handle the Verotel webhook (callback)
+app.get('/verotel/callback', (req, res) => {
+  const transactionData = req.query;
+
+  // Log the transaction data
+  console.log('Received callback from Verotel:', transactionData);
+
+// Generate the signature for verification
+    const generatedSignature = generateSignature(transactionData);
+
+    console.log('Generated Signature:', generatedSignature);
+    console.log('Received Signature:', transactionData.signature);
+    if (generatedSignature === transactionData.signature) {console.log('yes');}else{console.log('fck')}
+
+  // Compare the expected signature with the received one
+  //if (expectedSignature === transactionData.signature) {
+    if (transactionData.type === 'purchase' && transactionData.payment === 'success') {
+      // Handle successful payment
+      console.log('Payment successful:', transactionData);
+      // Perform actions such as updating your database here
+      res.status(200).send('OK');
+    } else {
+      // Handle other types or failed transactions
+      console.log('Payment failed or other event:', transactionData);
+    }
+    // Respond to Verotel to acknowledge the callback
+  /*} else {
+    console.error('Invalid signature received from Verotel');
+    res.status(403).send('Invalid signature'); // Forbidden response for invalid signature
+  }*/
+});
+
+
 
 // Get the directory name from the URL
 const __filename = fileURLToPath(import.meta.url);
@@ -58,29 +116,6 @@ const __dirname = path.dirname(__filename);
 
 // Serve static files from the 'public' directory
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-
-
-// get all ads
-app.get("/ads", async(req, res) => {
-  try {
-    const allAds = await pool.query("SELECT * FROM ads");
-    res.json(allAds.rows);
-  } catch (error) {
-    console.error(error.message);
-  }
-});
-
-// get ad by id
-app.get("/ad/:ad_id", async(req, res) => {
-  try {
-    console.log(req.params);
-    const {ad_id} = req.params;
-    const ad = await pool.query("SELECT * FROM ads WHERE ad_id = $1", [ad_id]);
-    res.json(ad.rows[0]);
-  } catch (error) {
-    console.error(error.message);
-  }
-});
 
 // update ad
 app.put("/update-ad/:ad_id", async(req, res) => {
@@ -101,23 +136,6 @@ app.put("/update-ad/:ad_id", async(req, res) => {
 app.get('/', (req, res) => {
   res.status(200).send('OK');
 });
-
-//app.use("/record", records);
-//import routes from "./routes/api/user.js";
-//app.use("/api/users", routes);
-
-// Connect Database
-//connectDB();
-
-//app.get('/', (req, res) => res.send('Sex-ceska back-end is running'));
-// This section will help you get a list of all the records.
-/*
-app.get("/", async (req, res) => {
-  let collection = await db.collection("comments");
-  let results = await collection.find({}).toArray();
-  res.send(results).status(200);
-});
-*/
 
 // Starting the Express server
 app.listen(PORT, () => {

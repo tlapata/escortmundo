@@ -4,6 +4,7 @@ import { validationResult } from 'express-validator';
 import CreateImageUrl from '../utils/createImageUrl.js';
 import GetImagePath from '../utils/getImagePath.js';
 import fs from 'fs';
+
 // Connect to the database
 import pool from '../db/db.js';
 
@@ -33,6 +34,103 @@ export const GetUser = async(req, res) => {
       res.status(400).send({ error: error })
   }
 };
+
+// Changing user password
+export const ChangePassword = async (req, res) => {
+
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ error: errors.array() });
+  }
+
+  const { userId } = req.decoded;
+  const { oldpass, newpass } = req.body;
+
+  const userData = await pool.query(
+    `SELECT * FROM users WHERE id = $1 AND activated = TRUE`,
+    [userId]
+  );
+
+  if (!userData.rows) {
+    return res.status(404).send({ error: 'User Not Found' });
+  }
+  const user = userData.rows[0];
+
+  bcrypt.compare(oldpass, user.password, (err, result) => {
+    
+    // wrong current password
+    if (err) {
+      res.status(500).json({
+        error: 'The current password is incorrect.', // User-friendly error message
+        message: err.message, // Detailed error message from the server
+      });
+      return;
+    }
+    
+    if (result) {
+
+      bcrypt.genSalt(10, (err, salt) => {
+        if (err) {
+          res.status(501).send({ error: err });
+        }
+
+        bcrypt.hash(newpass, salt, async (err, hash) => {
+          if (err) {
+            res.status(502).send({ error: err });
+          }
+
+          const updatedUser = await pool.query(`
+              UPDATE users SET password = $1 WHERE id = $2`,
+              [hash, userId]
+          );
+
+          if( updatedUser ) {
+            res.status(200).json({
+              message: 'Password changed successfully.'
+            });
+          } else {
+            res.status(404).send({ error: err })
+          }
+        });
+      });
+    } else {
+      res.status(401).send({ error: 'Password did not matched' });
+    }    
+  });
+};
+
+// Activating pro
+export const ChangeStatus = async (req, res) => {
+
+  const { userId } = req.decoded;
+  const { monthQTY } = req.body;
+
+  const userData = await pool.query(
+    `SELECT * FROM users WHERE id = $1 AND activated = TRUE`,
+    [userId]
+  );
+
+  if (!userData.rows) {
+    return res.status(404).send({ error: 'User Not Found' });
+  }
+  const user = userData.rows[0];
+
+  const updatedUser = await pool.query(`
+      UPDATE users SET 
+        pro = 1, 
+        pro_activated = CURRENT_TIMESTAMP,  
+        pro_valid = COALESCE(pro_valid, CURRENT_TIMESTAMP) + INTERVAL '${monthQTY} MONTH'
+      WHERE id = $1 RETURNING *`,
+      [userId]
+  );
+
+  res.status(200).json({
+    message: 'Status changed successfully.',
+    user: updatedUser.rows[0],
+  });
+};
+
+
 
 
 
@@ -170,92 +268,6 @@ export const UpdateAuthentication = async (req, res) => {
   res.status(200).json({
     message: 'Authentication Updated successfully.',
     user: user,
-  });
-};
-
-// Activating user account = mv8
-export const ChangeStatus = async (req, res) => {
-
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(422).json({ error: errors.array() });
-  }
-
-  const { userId } = req.decoded;
-  const { status } = req.body;
-
-  const user = await collection.findOneAndUpdate(
-    {_id: ObjectId.createFromHexString(userId)},
-    { $set: { activated: status } },
-    { returnDocument: 'after'}
-  );
-
-  if (!user) {
-    return res.status(404).send({ error: 'User Not Found' });
-  }
-
-  res.status(200).json({
-    message: 'Status Changed successfully.',
-    user: user,
-  });
-};
-
-// Changing user password = mv8
-export const ChangePassword = async (req, res) => {
-
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(422).json({ error: errors.array() });
-  }
-
-  const { userId } = req.decoded;
-  const { currentPassword, newPassword } = req.body;
-
-  const user = await collection.findOne({_id: ObjectId.createFromHexString(userId)});
-
-  if (!user) {
-    return res.status(404).send({ error: 'User Not Found' });
-  }
-
-  bcrypt.compare(currentPassword, user.password, (err, result) => {
-    
-    // wrong current password
-    if (err) {
-      res.status(500).send({ error: err.message });
-      return;
-    }
-
-    if (result) {
-
-      bcrypt.genSalt(10, (err, salt) => {
-        if (err) {
-          res.status(500).send({ error: err });
-        }
-
-        bcrypt.hash(newPassword, salt, async (err, hash) => {
-          if (err) {
-            res.status(500).send({ error: err });
-          }
-
-          const updatedUser = await collection.findOneAndUpdate(
-            {_id: ObjectId.createFromHexString(userId)},
-            { $set: { password: hash } },
-            { returnDocument: true }
-          );
-
-          if (!updatedUser) {
-            return res.status(404).send({ error: 'User Not Found' });
-          }
-
-          res.status(200).json({
-            message: 'Password Changed successfully.',
-            user: updatedUser,
-          });
-        });
-      });
-    } else {
-      res.status(401).send({ error: 'Password did not matched' });
-    }    
   });
 };
 

@@ -15,25 +15,17 @@ const updateAuthenticationValidationRules = [
     .withMessage("activated must not be true/false"),
 ];
 
-const changeStatusValidationRules = [
-  check("status")
-    .exists()
-    .withMessage("Activated is required")
-    .isIn([true, false])
-    .withMessage("activated must not be true/false"),
-];
-
 const changePasswordValidationRules = [
-  check("currentPassword")
+  check("oldpass")
     .exists()
-    .withMessage("Current Password is required")
+    .withMessage("Current password is required.")
     .isLength({ min: 6 })
-    .withMessage("Current Password must be at least six characters"),
-  check("newPassword")
+    .withMessage("Current password must be at least six characters."),
+  check("newpass")
     .exists()
-    .withMessage("New Password is required")
+    .withMessage("New password is required.")
     .isLength({ min: 6 })
-    .withMessage("New Password must be at least six characters"),
+    .withMessage("New password must be at least six characters."),
 ];
 
 const addAddressValidationRules = [
@@ -65,6 +57,21 @@ const addressIdValidationRules = [
  */
 router.get("/getUser", requireAuth, userController.GetUser);
 
+/**
+ * @Route Patch /api/user/changePassword
+ * Validating the request body and passing the request to the controller
+ * @access Private (requireAuth middleware)
+*/
+router.patch("/changePassword", requireAuth, changePasswordValidationRules, userController.ChangePassword);
+
+/**
+ * @Route Patch /api/user/changeStatus
+ * Validating the request body and passing the request to the controller
+ * @access Private (requireAuth middleware)
+ */
+router.patch("/changeStatus", requireAuth, userController.ChangeStatus);
+
+
 
 
 
@@ -83,28 +90,6 @@ router.patch(
   requireAuth,
   updateAuthenticationValidationRules,
   userController.UpdateAuthentication
-);
-
-/**
- * @Route Patch /api/user/changeStatus
- * Validating the request body and passing the request to the controller
- */
-router.patch(
-  "/changeStatus",
-  requireAuth,
-  changeStatusValidationRules,
-  userController.ChangeStatus
-);
-
-/**
- * @Route Patch /api/user/changePassword
- * Validating the request body and passing the request to the controller
- */
-router.patch(
-  "/changePassword",
-  requireAuth,
-  changePasswordValidationRules,
-  userController.ChangePassword
 );
 
 /**
