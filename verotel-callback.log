@@ -1,9 +1,1 @@
-Received callback from Verotel: {"paymentMethod":"CC","priceAmount":"14.99","priceCurrency":"EUR","saleID":"456789","shopID":"130576","transactionID":"130576","type":"purchase","signature":"7fdb0c46737bcea4591ee87350e1cb647d668cc8755911a9dbb8d31218815a8a"}
-Generated Signature: 5ee07d6178bbd3510367717a25250aac0229678c
-Received Signature: 7fdb0c46737bcea4591ee87350e1cb647d668cc8755911a9dbb8d31218815a8a
-Received callback from Verotel: {"payment":"success","paymentMethod":"CC","priceAmount":"14.99","priceCurrency":"EUR","saleID":"456789","shopID":"130576","transactionID":"130576","type":"purchase","signature":"7fdb0c46737bcea4591ee87350e1cb647d668cc8755911a9dbb8d31218815a8a"}
-Generated Signature: 5ee07d6178bbd3510367717a25250aac0229678c
-Received Signature: 7fdb0c46737bcea4591ee87350e1cb647d668cc8755911a9dbb8d31218815a8a
-Received callback from Verotel: {}
-Generated Signature: db25a4c86968f3ddeecc3ba38405ef171ecf32eb
-Received Signature: undefined
+
