@@ -103,7 +103,6 @@ export const UpdateByAdmin = async (req, res) => {
   
     const { id } = req.params;
     const {description} = req.body;
-    console.log("index toure controller", description, id, req.decoded);
 
     if(description) {
         try {

@@ -98,7 +98,7 @@ export const GetAllforAdmin = async (req, res) => {
 export const Add = async (req, res) => {
   
     const { userId } = req.decoded;
-    const { tagtext, tagslug } = req.body;
+    const { tagtext, tagslug, description } = req.body;
 
     let tag_slug;
     if( tagslug !== '' ) {
@@ -107,7 +107,7 @@ export const Add = async (req, res) => {
         tag_slug = tagtext.toLowerCase().replace(/[^a-z0-9]/g, '-');
     }
 
-    console.log(tag_slug);
+    console.log(tag_slug, description);
 
     const tag = await pool.query(`SELECT * FROM tags WHERE text = $1`,
         [tagtext]
@@ -124,10 +124,11 @@ export const Add = async (req, res) => {
                 `INSERT INTO tags (
                     text, 
                     slug,
+                    description, 
                     created_at) 
                 VALUES(
-                    $1, $2, CURRENT_TIMESTAMP) RETURNING *`, 
-                [tagtext, tag_slug]
+                    $1, $2, $3, CURRENT_TIMESTAMP) RETURNING *`, 
+                [tagtext, tag_slug, description]
             );
             
             console.log("ad added:", newTag.rows[0].id);

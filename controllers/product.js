@@ -213,18 +213,18 @@ export const GetAllbyCountry = async (req, res) => {
 
     const allAds = await pool.query(
       `SELECT a.*, c.name AS cityname, i.filename as coverimage, u.pro, u.pro_valid AS turbo 
-       FROM ads a
-       JOIN cities c ON a.city = c.id 
-       JOIN images i ON a.image_id = i.id 
-       JOIN users u ON a.user_id = u.id 
-       WHERE a.status = 1 
-              AND c.country_id = $1 
-              AND a.created_at + INTERVAL '6 MONTH' >= now() 
-              AND a.description ILIKE '%' || $4 || '%' 
-              AND LOWER(a.gender) = ANY($5::text[])
-              AND a.age >= $6 AND a.age <= $7
-       ORDER BY a.created_at DESC
-       LIMIT $2 OFFSET $3`,
+        FROM ads a
+        JOIN cities c ON a.city = c.id 
+        JOIN images i ON a.image_id = i.id 
+        JOIN users u ON a.user_id = u.id 
+        WHERE a.status = 1 
+          AND c.country_id = $1 
+          AND a.created_at + INTERVAL '6 MONTH' >= now() 
+          AND a.description ILIKE '%' || $4 || '%' 
+          AND LOWER(a.gender) = ANY($5::text[])
+          AND a.age >= $6 AND a.age <= $7
+        ORDER BY a.created_at DESC
+        LIMIT $2 OFFSET $3`,
       [countryID, limit, offset, search, genderArray, ageFrom, ageTo]
     );
 
@@ -332,10 +332,9 @@ export const GetByCity = async (req, res) => {
 // Getting all products by author
 export const GetByAuthor = async (req, res) => {
 
-  const { status } = req.params;
+  const { status, countryID } = req.params;
 
   try {
-
     let authorProducts;
 
     if( status && status === 'expired' ) {
@@ -345,10 +344,11 @@ export const GetByAuthor = async (req, res) => {
         FROM ads a 
         JOIN cities c ON a.city = c.id 
         JOIN images i ON a.image_id = i.id 
-        WHERE a.user_id = $1 AND 
-            a.created_at + INTERVAL '6 MONTH' < now() 
+        WHERE a.user_id = $1  
+            AND c.country_id = $2 
+            AND a.created_at + INTERVAL '6 MONTH' < now() 
         ORDER BY a.created_at DESC`,
-        [req.decoded.userId]
+        [req.decoded.userId, countryID]
       );
 
     } else {
@@ -357,8 +357,11 @@ export const GetByAuthor = async (req, res) => {
         FROM ads a 
         JOIN cities c ON a.city = c.id 
         JOIN images i ON a.image_id = i.id 
-        WHERE a.user_id = $1 ORDER BY a.created_at DESC`,
-        [req.decoded.userId]
+        WHERE a.user_id = $1 
+              AND c.country_id = $2 
+              AND a.created_at + INTERVAL '6 MONTH' >= now() 
+        ORDER BY a.created_at DESC`,
+        [req.decoded.userId, countryID]
       );
     }
 
@@ -384,16 +387,19 @@ export const GetByAuthor = async (req, res) => {
 
 // Getting all products by author with in review status
 export const GetByAuthorActive = async (req, res) => {
+  const { countryID } = req.params;
   try {
       const authorProducts = await pool.query(
         `SELECT a.*, c.name AS cityname, i.filename as coverimage 
         FROM ads a 
         JOIN cities c ON a.city = c.id 
         JOIN images i ON a.image_id = i.id 
-        WHERE a.user_id = $1 AND a.status = 1 AND 
+        WHERE a.user_id = $1 
+            AND c.country_id = $2 
+            AND a.status = 1 AND 
             a.created_at + INTERVAL '6 MONTH' >= now()
         ORDER BY a.created_at DESC`,
-        [req.decoded.userId]
+        [req.decoded.userId, countryID]
       );
 
       // Getting cover image link
@@ -416,15 +422,18 @@ export const GetByAuthorActive = async (req, res) => {
 
 // Getting all products by author with in review status
 export const GetByAuthorNew = async (req, res) => {
-  console.log(req.params);
+  const { countryID } = req.params;
   try {
       const authorProducts = await pool.query(
         `SELECT a.*, c.name AS cityname, i.filename as coverimage  
         FROM ads a 
         JOIN cities c ON a.city = c.id 
         JOIN images i ON a.image_id = i.id 
-        WHERE a.user_id = $1 AND a.status = 0 ORDER BY a.created_at DESC`,
-        [req.decoded.userId]
+        WHERE a.user_id = $1 
+            AND c.country_id = $2 
+            AND a.status = 0 
+        ORDER BY a.created_at DESC`,
+        [req.decoded.userId, countryID]
       );
 
       // Getting cover image link

@@ -76,32 +76,32 @@ router.get('/getAllbyCountry/:countryID', productController.GetAllbyCountry);
 
 
 /**
- * @route GET /api/product/getByAuthor
+ * @route GET /api/product/getByAuthor/countryID
  * @description Get products by user (authenticated user)
  * @access Private (requireAuth middleware)
  */
-router.get('/getByAuthor', requireAuth, productController.GetByAuthor);
+router.get('/getByAuthor/:countryID', requireAuth, productController.GetByAuthor);
 
 /**
- * @route GET /api/product/getByAuthor/expired
+ * @route GET /api/product/getByAuthor/expired/countryID
  * @description Get products by user (authenticated user)
  * @access Private (requireAuth middleware)
  */
-router.get('/getByAuthor/:status', requireAuth, productController.GetByAuthor);
+router.get('/getByAuthor/:status/:countryID', requireAuth, productController.GetByAuthor);
 
 /**
- * @route GET /api/product/getByAuthorNew
+ * @route GET /api/product/getByAuthorNew/countryID
  * @description Get new (in review) products by user (authenticated user)
  * @access Private (requireAuth middleware)
  */
-router.get('/getByAuthorNew', requireAuth, productController.GetByAuthorNew);
+router.get('/getByAuthorNew/:countryID', requireAuth, productController.GetByAuthorNew);
 
 /**
- * @route GET /api/product/getByAuthorActive
+ * @route GET /api/product/getByAuthorActive/countryID
  * @description Get active products by user (authenticated user)
  * @access Private (requireAuth middleware)
  */
-router.get('/getByAuthorActive', requireAuth, productController.GetByAuthorActive);
+router.get('/getByAuthorActive/:countryID', requireAuth, productController.GetByAuthorActive);
 
 /**
  * @route GET /api/product/getByCity
@@ -155,7 +155,7 @@ router.patch('/updateStatus/:id', authenticateAdmin, productController.UpdateSta
  * @description Delete a product by its ID
  * @access Private (requireAuth middleware)
  */
-router.delete('/delete/:id', authenticateAdmin, productController.deleteProduct);
+router.delete('/delete/:id', requireAuth, productController.deleteProduct);
 
 
 export default router;
